@@ -9,11 +9,17 @@ app = Flask(__name__)
 
 # Fetch stock data
 def fetch_stock_data(ticker, start_date, end_date):
-    stock_data = yf.download(ticker, start=start_date, end=end_date)
-    if stock_data.empty:
-        raise ValueError("No data found for the specified date range.")
-    stock_data.dropna(inplace=True)  # Remove rows with missing values
-    return stock_data
+    try:
+        stock_data = yf.download(ticker, start=start_date, end=end_date)
+        if stock_data.empty:
+            # Adjust end date to the last available trading day
+            stock_data = yf.download(ticker, start=start_date)
+            if stock_data.empty:
+                raise ValueError(f"No data found for ticker: {ticker}")
+        stock_data.dropna(inplace=True)  # Remove rows with missing values
+        return stock_data
+    except Exception as e:
+        raise ValueError(f"Failed to fetch data: {str(e)}")
 
 # Prepare data for training
 def prepare_data(stock_data):
