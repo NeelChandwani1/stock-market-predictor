@@ -25,5 +25,9 @@
     {% if prediction %}
         <h2>Predicted Price: {{ prediction }}</h2>
     {% endif %}
+
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
 </body>
 </html>
