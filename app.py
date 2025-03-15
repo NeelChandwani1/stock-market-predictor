@@ -4,38 +4,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from datetime import datetime
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    prediction = None
-    error = None
-    if request.method == "POST":
-        ticker = request.form["ticker"]
-        start_date = request.form["start_date"]
-        end_date = request.form["end_date"]
-
-        # Convert dates to datetime objects
-        start_date_dt = datetime.strptime(start_date, '%Y-%m-%d')
-        end_date_dt = datetime.strptime(end_date, '%Y-%m-%d')
-
-        # Validate date range
-        if end_date_dt <= start_date_dt:
-            error = "End date must be after start date."
-        elif (end_date_dt - start_date_dt).days < 30:
-            error = "Date range must be at least 30 days."
-        else:
-            try:
-                stock_data = fetch_stock_data(ticker, start_date, end_date)
-                if stock_data.empty:
-                    error = "No data found for the specified date range."
-                else:
-                    X, y = prepare_data(stock_data)
-                    model = train_model(X, y)
-                    prediction = model.predict([X[-1]])[0]
-            except Exception as e:
-                error = f"An error occurred: {str(e)}"
-
-    return render_template("index.html", prediction=prediction, error=error)
-
+# Initialize the Flask app
 app = Flask(__name__)
 
 # Fetch stock data
@@ -62,17 +31,31 @@ def train_model(X, y):
 @app.route("/", methods=["GET", "POST"])
 def index():
     prediction = None
+    error = None
     if request.method == "POST":
         ticker = request.form["ticker"]
         start_date = request.form["start_date"]
         end_date = request.form["end_date"]
 
-        stock_data = fetch_stock_data(ticker, start_date, end_date)
-        X, y = prepare_data(stock_data)
-        model = train_model(X, y)
-        prediction = model.predict([X[-1]])[0]
+        # Convert dates to datetime objects
+        start_date_dt = datetime.strptime(start_date, '%Y-%m-%d')
+        end_date_dt = datetime.strptime(end_date, '%Y-%m-%d')
 
-    return render_template("index.html", prediction=prediction)
+        # Validate date range
+        if end_date_dt <= start_date_dt:
+            error = "End date must be after start date."
+        elif (end_date_dt - start_date_dt).days < 30:
+            error = "Date range must be at least 30 days."
+        else:
+            try:
+                stock_data = fetch_stock_data(ticker, start_date, end_date)
+                X, y = prepare_data(stock_data)
+                model = train_model(X, y)
+                prediction = model.predict([X[-1]])[0]
+            except Exception as e:
+                error = f"An error occurred: {str(e)}"
+
+    return render_template("index.html", prediction=prediction, error=error)
 
 if __name__ == "__main__":
     app.run(debug=True)
