@@ -12,18 +12,21 @@
         <input type="text" id="ticker" name="ticker" placeholder="e.g., AAPL" required>
         <br>
         <label for="start_date">Start Date:</label>
-        <input type="date" id="start_date" name="start_date" value="2022-10-01" required>
-        <small>Select the start date for historical data.</small>
+        <input type="date" id="start_date" name="start_date" required>
         <br>
         <label for="end_date">End Date:</label>
-        <input type="date" id="end_date" name="end_date" value="2023-10-01" required>
-        <small>Select the end date for historical data.</small>
+        <input type="date" id="end_date" name="end_date" required>
         <br>
         <button type="submit">Predict</button>
     </form>
 
     {% if prediction %}
-        <h2>Predicted Price: {{ prediction }}</h2>
+        <h2>Predicted Prices:</h2>
+        <ul>
+            {% for price in prediction %}
+                <li>${{ price|round(2) }}</li>
+            {% endfor %}
+        </ul>
     {% endif %}
 
     {% if error %}

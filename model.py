@@ -1,40 +1,49 @@
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-import yfinance as yf
+import tensorflow as tf
+from sklearn.preprocessing import MinMaxScaler
+from alpha_vantage.timeseries import TimeSeries
 
-# Fetch stock data
+# Fetch stock data using Alpha Vantage API
+API_KEY = "YOUR_ALPHA_VANTAGE_API_KEY"
+
 def fetch_stock_data(ticker, start_date, end_date):
-    stock_data = yf.download(ticker, start=start_date, end=end_date)
-    return stock_data
+    ts = TimeSeries(key=API_KEY, output_format="pandas")
+    data, _ = ts.get_daily(symbol=ticker, outputsize="full")
+    
+    data = data[start_date:end_date]
+    if data.empty:
+        raise ValueError("No data found. Try another date range.")
+    
+    return data
 
 # Prepare data for training
 def prepare_data(stock_data):
-    stock_data['Prediction'] = stock_data['Close'].shift(-30)  # Predict 30 days into the future
-    X = np.array(stock_data[['Open', 'High', 'Low', 'Close', 'Volume']][:-30])
-    y = np.array(stock_data['Prediction'][:-30])
-    return train_test_split(X, y, test_size=0.2)
+    scaler = MinMaxScaler(feature_range=(0,1))
+    scaled_data = scaler.fit_transform(stock_data["4. close"].values.reshape(-1,1))
 
-# Train the model
+    X, y = [], []
+    for i in range(30, len(scaled_data)):
+        X.append(scaled_data[i-30:i, 0])
+        y.append(scaled_data[i, 0])
+
+    X, y = np.array(X), np.array(y)
+    return X[: -10], X[-10:], y[: -10], y[-10:], scaler
+
+# Train LSTM Model
 def train_model(X_train, y_train):
-    model = RandomForestRegressor(n_estimators=100)
-    model.fit(X_train, y_train)
+    model = tf.keras.Sequential([
+        tf.keras.layers.LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1], 1)),
+        tf.keras.layers.LSTM(units=50),
+        tf.keras.layers.Dense(units=1)
+    ])
+    
+    model.compile(optimizer="adam", loss="mean_squared_error")
+    model.fit(X_train, y_train, epochs=20, batch_size=16)
+    
     return model
 
-# Predict future prices
-def predict(model, X_test):
-    return model.predict(X_test)
-
-if __name__ == "__main__":
-    # Example: Predict Apple stock prices
-    ticker = "AAPL"
-    start_date = "2020-01-01"
-    end_date = "2023-01-01"
-
-    stock_data = fetch_stock_data(ticker, start_date, end_date)
-    X_train, X_test, y_train, y_test = prepare_data(stock_data)
-    model = train_model(X_train, y_train)
-    predictions = predict(model, X_test)
-
-    print("Predictions:", predictions)
+# Predict future stock prices
+def predict(model, X_test, scaler):
+    predictions = model.predict(X_test)
+    return scaler.inverse_transform(predictions).tolist()
